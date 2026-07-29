@@ -1,0 +1,16 @@
+# CRITICAL — Never commit these
+.env
+.env.local
+.env.production
+.env.development
+
+# Next.js
+.next/
+out/
+node_modules/
+
+# Misc
+.DS_Store
+*.log
+npm-debug.log*
+.vercel

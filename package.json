@@ -1,0 +1,27 @@
+{
+  "name": "phagenome",
+  "version": "1.0.0",
+  "description": "PhaGenome — Integrated Phage Genome Analysis Platform — ICAR-NMRI",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "14.2.3",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "@supabase/supabase-js": "^2.43.0",
+    "axios": "^1.7.0",
+    "d3": "^7.9.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.3"
+  }
+}
