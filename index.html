@@ -921,7 +921,7 @@ BLAST identification: BLAST+ 2.16 against NCBI RefSeq Viruses (19,582 genomes)
 tRNA detection : tRNAscan-SE 2.0 (local)
 Genome annotation : Pharokka v1.8 (PHANOTATE + PHROGs v4 + PyHMMER)
 Safety screening : CARD v3.2.6 + VFDB 2024
-Lifestyle prediction: Sequence-based heuristic (genome size, GC%, DTR)
+Lifestyle prediction: ${lifestyle.engine || 'Sequence-based heuristic (genome size, GC%, DTR)'}
 Taxonomy : ICTV 2025 MSL41 (DOI: 10.5281/zenodo.19154110)
 
 CITATION
