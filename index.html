@@ -289,6 +289,11 @@ ICAR–National Meat Research Institute, Hyderabad, India
 <div class="feature-title">RBP Detection</div>
 <div class="feature-desc">PhageRBPdetect (HMM)</div>
 </div>
+<div class="feature">
+<div class="feature-icon">🦠</div>
+<div class="feature-title">Host Prediction</div>
+<div class="feature-desc">PHP (k-mer/Gaussian Model)</div>
+</div>
 </div>
 
 <!-- Input -->
@@ -332,6 +337,10 @@ Genome Annotation (Pharokka + PHROGs)...
 <div class="step" id="step-rbp">
 <span class="step-icon">🎯</span>
 Receptor-Binding Protein Detection...
+</div>
+<div class="step" id="step-host">
+<span class="step-icon">🦠</span>
+Bacterial Host Prediction...
 </div>
 <div class="step" id="step-done">
 <span class="step-icon">✅</span>
@@ -393,6 +402,12 @@ Analysis Complete!
 <div id="rbp-results"></div>
 </div>
 
+<!-- Host Prediction -->
+<div class="result-section">
+<h3>🦠 Bacterial Host Prediction</h3>
+<div id="host-results"></div>
+</div>
+
 <!-- Circular Genome Map -->
 <div class="result-section">
 <h3>🗺️ Circular Genome Map</h3>
@@ -452,7 +467,7 @@ document.getElementById('progress').className = 'progress active';
 document.getElementById('results').className = 'results';
 analysisData = { header, sequence };
 
-['blast','trna','safety','lifestyle','annotation','rbp','done'].forEach(s =>
+['blast','trna','safety','lifestyle','annotation','rbp','host','done'].forEach(s =>
 setStep(s, ''));
 
 try {
@@ -536,10 +551,28 @@ setStep('rbp', 'error');
 }
 analysisData.rbp = rbp;
 
+// Bacterial Host Prediction (PHP)
+setStep('host', 'running');
+let hostPred = {};
+try {
+const hostRes = await fetch(`${API}/host-predict`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ sequence, header })
+});
+hostPred = await hostRes.json();
+setStep('host', 'done');
+} catch (hostErr) {
+console.error('Host prediction error:', hostErr);
+hostPred = { error: hostErr.message };
+setStep('host', 'error');
+}
+analysisData.hostPred = hostPred;
+
 setStep('done', 'done');
 
 // Display results
-displayResults(blast, trna, safety, lifestyle, annotation, rbp, header, sequence);
+displayResults(blast, trna, safety, lifestyle, annotation, rbp, hostPred, header, sequence);
 
 } catch(e) {
 setStep('blast', 'error');
@@ -553,7 +586,7 @@ document.getElementById('analyseBtn').textContent =
 }
 }
 
-function displayResults(blast, trna, safety, lifestyle, annotation, rbp, header, sequence) {
+function displayResults(blast, trna, safety, lifestyle, annotation, rbp, hostPred, header, sequence) {
 const seqLen = sequence.length;
 const gc = ((sequence.match(/[GC]/gi)||[]).length / seqLen * 100).toFixed(1);
 const ictv = blast.ictv || {};
@@ -851,6 +884,20 @@ rbpHTML += `<p style="font-size:11px;color:#888;margin-top:10px">${rbp.engine||'
 }
 document.getElementById('rbp-results').innerHTML = rbpHTML;
 
+// Bacterial Host Prediction
+let hostHTML = '';
+if (hostPred.error) {
+hostHTML = `<p style="color:#c0392b">⚠️ Host prediction failed: ${hostPred.error}</p>`;
+} else {
+hostHTML = `<p><strong>Predicted host:</strong> ${hostPred.scientific_name||'Unknown'} (rank: ${hostPred.rank||'—'})</p>`;
+hostHTML += `<p style="font-size:13px;color:#666;margin-top:6px">Similarity score: ${hostPred.similarity_score?.toFixed(2)||'—'} | NCBI Taxonomy ID: ${hostPred.predicted_host_taxid||'—'}</p>`;
+if (hostPred.lineage) {
+hostHTML += `<p style="font-size:12px;color:#888;margin-top:8px"><strong>Lineage:</strong> ${hostPred.lineage}</p>`;
+}
+hostHTML += `<p style="font-size:11px;color:#888;margin-top:10px">${hostPred.engine||'PHP host predictor'}. Prediction reflects genomic k-mer similarity and may resolve to a closely related genus/species rather than an exact match — check lineage above for plausibility.</p>`;
+}
+document.getElementById('host-results').innerHTML = hostHTML;
+
 // Circular Genome Map
 if (annotation.genome_map_png_base64) {
 document.getElementById('genome-map-results').innerHTML = `
@@ -880,6 +927,7 @@ const safety = analysisData.safety || {};
 const lifestyle = analysisData.lifestyle || {};
 const annotation = analysisData.annotation || {};
 const rbp = analysisData.rbp || {};
+const hostPred = analysisData.hostPred || {};
 const ictv = blast.ictv || {};
 const seq = analysisData.sequence || '';
 const seqLen = seq.length;
@@ -976,6 +1024,16 @@ Candidates found : ${rbp.rbp_candidates_found||0} of ${rbp.total_proteins_scanne
 (rbp.candidates||[]).forEach(r => {
 report += ` ${r.protein_id||'—'} | N: ${(r.n_domains||[]).join(', ')||'—'} | C: ${(r.c_domains||[]).join(', ')||'—'}\n`;
 });
+
+report += `
+BACTERIAL HOST PREDICTION (PHP)
+${DIV}
+Predicted host : ${hostPred.scientific_name||'—'} (rank: ${hostPred.rank||'—'})
+Similarity score : ${hostPred.similarity_score||'—'}
+NCBI Taxonomy ID : ${hostPred.predicted_host_taxid||'—'}
+Lineage : ${hostPred.lineage||'—'}
+Note : Prediction reflects genomic k-mer similarity; may resolve to a closely related genus/species rather than an exact match.
+`;
 
 report += `
 SAFETY SCREENING
