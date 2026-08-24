@@ -284,6 +284,11 @@ ICAR–National Meat Research Institute, Hyderabad, India
 <div class="feature-title">Genome Annotation</div>
 <div class="feature-desc">Pharokka + PHROGs v4</div>
 </div>
+<div class="feature">
+<div class="feature-icon">🎯</div>
+<div class="feature-title">RBP Detection</div>
+<div class="feature-desc">PhageRBPdetect (HMM)</div>
+</div>
 </div>
 
 <!-- Input -->
@@ -323,6 +328,10 @@ Lifestyle Prediction...
 <div class="step" id="step-annotation">
 <span class="step-icon">🧬</span>
 Genome Annotation (Pharokka + PHROGs)...
+</div>
+<div class="step" id="step-rbp">
+<span class="step-icon">🎯</span>
+Receptor-Binding Protein Detection...
 </div>
 <div class="step" id="step-done">
 <span class="step-icon">✅</span>
@@ -376,6 +385,12 @@ Analysis Complete!
 <div class="result-section">
 <h3>🧬 Genome Annotation</h3>
 <div id="annotation-results"></div>
+</div>
+
+<!-- RBP Detection -->
+<div class="result-section">
+<h3>🎯 Receptor-Binding Protein Detection</h3>
+<div id="rbp-results"></div>
 </div>
 
 <!-- Circular Genome Map -->
@@ -437,7 +452,7 @@ document.getElementById('progress').className = 'progress active';
 document.getElementById('results').className = 'results';
 analysisData = { header, sequence };
 
-['blast','trna','safety','lifestyle','annotation','done'].forEach(s =>
+['blast','trna','safety','lifestyle','annotation','rbp','done'].forEach(s =>
 setStep(s, ''));
 
 try {
@@ -503,10 +518,28 @@ setStep('annotation', 'error');
 }
 analysisData.annotation = annotation;
 
+// RBP Detection (PhageRBPdetect — HMM domain method)
+setStep('rbp', 'running');
+let rbp = {};
+try {
+const rbpRes = await fetch(`${API}/rbp`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ sequence, header })
+});
+rbp = await rbpRes.json();
+setStep('rbp', 'done');
+} catch (rbpErr) {
+console.error('RBP detection error:', rbpErr);
+rbp = { rbp_candidates_found: 0, error: rbpErr.message };
+setStep('rbp', 'error');
+}
+analysisData.rbp = rbp;
+
 setStep('done', 'done');
 
 // Display results
-displayResults(blast, trna, safety, lifestyle, annotation, header, sequence);
+displayResults(blast, trna, safety, lifestyle, annotation, rbp, header, sequence);
 
 } catch(e) {
 setStep('blast', 'error');
@@ -520,7 +553,7 @@ document.getElementById('analyseBtn').textContent =
 }
 }
 
-function displayResults(blast, trna, safety, lifestyle, annotation, header, sequence) {
+function displayResults(blast, trna, safety, lifestyle, annotation, rbp, header, sequence) {
 const seqLen = sequence.length;
 const gc = ((sequence.match(/[GC]/gi)||[]).length / seqLen * 100).toFixed(1);
 const ictv = blast.ictv || {};
@@ -791,6 +824,33 @@ for the complete gene list.
 }
 document.getElementById('annotation-results').innerHTML = annotHTML;
 
+// RBP Detection
+let rbpHTML = '';
+if (rbp.error) {
+rbpHTML = `<p style="color:#c0392b">⚠️ RBP detection failed: ${rbp.error}</p>`;
+} else {
+const rbpCandidates = rbp.candidates || [];
+rbpHTML = `<p><strong>${rbp.rbp_candidates_found||0} candidate RBP(s) found</strong> out of ${rbp.total_proteins_scanned||0} proteins scanned</p>`;
+if (rbpCandidates.length > 0) {
+rbpHTML += `<table class="hit-table" style="margin-top:10px">
+<tr>
+<th>Protein ID</th>
+<th>N-terminal Domains</th>
+<th>C-terminal Domains</th>
+</tr>`;
+rbpCandidates.forEach(r => {
+rbpHTML += `<tr>
+<td>${r.protein_id||'—'}</td>
+<td>${(r.n_domains||[]).join(', ')||'—'}</td>
+<td>${(r.c_domains||[]).join(', ')||'—'}</td>
+</tr>`;
+});
+rbpHTML += '</table>';
+}
+rbpHTML += `<p style="font-size:11px;color:#888;margin-top:10px">${rbp.engine||'PhageRBPdetect — HMM domain method'}</p>`;
+}
+document.getElementById('rbp-results').innerHTML = rbpHTML;
+
 // Circular Genome Map
 if (annotation.genome_map_png_base64) {
 document.getElementById('genome-map-results').innerHTML = `
@@ -819,6 +879,7 @@ const trna = analysisData.trna || {};
 const safety = analysisData.safety || {};
 const lifestyle = analysisData.lifestyle || {};
 const annotation = analysisData.annotation || {};
+const rbp = analysisData.rbp || {};
 const ictv = blast.ictv || {};
 const seq = analysisData.sequence || '';
 const seqLen = seq.length;
@@ -905,6 +966,15 @@ Gene list:
 (annotation.genes||[]).forEach(g => {
 report += ` ${g.id||'—'} | ${g.start||'—'}-${g.stop||'—'} (${g.strand||'?'}) | `;
 report += `${g.function||'Hypothetical protein'} | ${g.category||'—'}\n`;
+});
+
+report += `
+RBP DETECTION (PhageRBPdetect — HMM domain method)
+${DIV}
+Candidates found : ${rbp.rbp_candidates_found||0} of ${rbp.total_proteins_scanned||0} proteins scanned
+`;
+(rbp.candidates||[]).forEach(r => {
+report += ` ${r.protein_id||'—'} | N: ${(r.n_domains||[]).join(', ')||'—'} | C: ${(r.c_domains||[]).join(', ')||'—'}\n`;
 });
 
 report += `
