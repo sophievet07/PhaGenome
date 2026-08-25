@@ -646,6 +646,21 @@ ${safety.overall || '—'}
 <div class="result-label">ICTV Version</div>
 <div class="result-value">${ictv.ictv_version || 'MSL41 (2025)'}</div>
 </div>
+<div class="result-item">
+<div class="result-label">Confidence</div>
+<div class="result-value" style="font-size:13px">${ictv.confidence || '—'}</div>
+</div>
+<div class="result-item">
+<div class="result-label">Whole-Genome Identity</div>
+<div class="result-value">
+${blast.whole_genome_identity
+    ? blast.whole_genome_identity.whole_genome_identity + '% '
+      + '<span style="font-size:11px;color:#888">('
+      + blast.whole_genome_identity.aligned_fraction_query
+      + '% genome aligned)</span>'
+    : '<span style="font-size:12px;color:#888">Not available for this hit</span>'}
+</div>
+</div>
 `;
 
 // BLAST hits
