@@ -996,6 +996,7 @@ Genus : ${ictv.genus||'—'}
 Species : ${ictv.species||'—'}
 Morphology : ${ictv.morphology||'—'}
 Confidence : ${ictv.confidence||'—'}
+Whole-Genome Identity : ${blast.whole_genome_identity ? blast.whole_genome_identity.whole_genome_identity + '% (' + blast.whole_genome_identity.aligned_fraction_query + '% of genome aligned, VIRIDIC-inspired method)' : 'Not available for this hit'}
 Demarcation : ${ictv.demarcation||'ICTV 2025: ANI >95% = same species'}
 
 LIFESTYLE PREDICTION
