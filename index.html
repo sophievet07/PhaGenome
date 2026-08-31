@@ -957,7 +957,7 @@ deppHTML += '</table>';
 }
 deppHTML += `<p style="font-size:11px;color:#888;margin-top:10px">${depp.engine||'DePP — Random Forest classifier'}</p>`;
 }
-document.getElementById('depp-results').innerHTML = deppHTML;
+if (document.getElementById('depp-results')) document.getElementById('depp-results').innerHTML = deppHTML;
 
 // Deep ICTV Classification
 let taxHTML = '';
@@ -974,7 +974,7 @@ taxHTML += `<p style="color:#8e44ad;margin-top:8px">This genome may represent a 
 }
 taxHTML += `<p style="font-size:11px;color:#888;margin-top:10px">${taxmyphage.engine||'taxMyPhage — MASH + BLASTn clustering'}</p>`;
 }
-document.getElementById('taxmyphage-results').innerHTML = taxHTML;
+if (document.getElementById('taxmyphage-results')) document.getElementById('taxmyphage-results').innerHTML = taxHTML;
 
 // Circular Genome Map
 if (annotation.genome_map_png_base64) {
