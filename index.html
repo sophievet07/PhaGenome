@@ -294,6 +294,16 @@ ICAR–National Meat Research Institute, Hyderabad, India
 <div class="feature-title">Host Prediction</div>
 <div class="feature-desc">PHP (k-mer/Gaussian Model)</div>
 </div>
+<div class="feature">
+<div class="feature-icon">💧</div>
+<div class="feature-title">Depolymerase Prediction</div>
+<div class="feature-desc">DePP (Random Forest)</div>
+</div>
+<div class="feature">
+<div class="feature-icon">🔬</div>
+<div class="feature-title">ICTV Deep Classification</div>
+<div class="feature-desc">taxMyPhage (MASH + BLASTn)</div>
+</div>
 </div>
 
 <!-- Input -->
@@ -341,6 +351,14 @@ Receptor-Binding Protein Detection...
 <div class="step" id="step-host">
 <span class="step-icon">🦠</span>
 Bacterial Host Prediction...
+</div>
+<div class="step" id="step-depp">
+<span class="step-icon">💧</span>
+Depolymerase Prediction...
+</div>
+<div class="step" id="step-taxmyphage">
+<span class="step-icon">🔬</span>
+Deep ICTV Classification (may take a few minutes for well-studied genera)...
 </div>
 <div class="step" id="step-done">
 <span class="step-icon">✅</span>
@@ -408,6 +426,18 @@ Analysis Complete!
 <div id="host-results"></div>
 </div>
 
+<!-- Depolymerase Prediction -->
+<div class="result-section">
+<h3>💧 Depolymerase Prediction</h3>
+<div id="depp-results"></div>
+</div>
+
+<!-- Deep ICTV Classification -->
+<div class="result-section">
+<h3>🔬 Deep ICTV Classification (taxMyPhage)</h3>
+<div id="taxmyphage-results"></div>
+</div>
+
 <!-- Circular Genome Map -->
 <div class="result-section">
 <h3>🗺️ Circular Genome Map</h3>
@@ -467,7 +497,7 @@ document.getElementById('progress').className = 'progress active';
 document.getElementById('results').className = 'results';
 analysisData = { header, sequence };
 
-['blast','trna','safety','lifestyle','annotation','rbp','host','done'].forEach(s =>
+['blast','trna','safety','lifestyle','annotation','rbp','host','depp','taxmyphage','done'].forEach(s =>
 setStep(s, ''));
 
 try {
@@ -569,10 +599,47 @@ setStep('host', 'error');
 }
 analysisData.hostPred = hostPred;
 
+// Depolymerase Prediction (DePP)
+setStep('depp', 'running');
+let depp = {};
+try {
+const deppRes = await fetch(`${API}/depolymerase`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ sequence, header })
+});
+depp = await deppRes.json();
+setStep('depp', 'done');
+} catch (deppErr) {
+console.error('Depolymerase prediction error:', deppErr);
+depp = { depolymerase_candidates_found: 0, error: deppErr.message };
+setStep('depp', 'error');
+}
+analysisData.depp = depp;
+
+// Deep ICTV Classification (taxMyPhage) — can take several
+// minutes for genomes closely related to well-studied genera
+setStep('taxmyphage', 'running');
+let taxmyphage = {};
+try {
+const taxRes = await fetch(`${API}/taxmyphage`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ sequence, header })
+});
+taxmyphage = await taxRes.json();
+setStep('taxmyphage', 'done');
+} catch (taxErr) {
+console.error('taxMyPhage error:', taxErr);
+taxmyphage = { error: taxErr.message };
+setStep('taxmyphage', 'error');
+}
+analysisData.taxmyphage = taxmyphage;
+
 setStep('done', 'done');
 
 // Display results
-displayResults(blast, trna, safety, lifestyle, annotation, rbp, hostPred, header, sequence);
+displayResults(blast, trna, safety, lifestyle, annotation, rbp, hostPred, depp, taxmyphage, header, sequence);
 
 } catch(e) {
 setStep('blast', 'error');
@@ -586,7 +653,7 @@ document.getElementById('analyseBtn').textContent =
 }
 }
 
-function displayResults(blast, trna, safety, lifestyle, annotation, rbp, hostPred, header, sequence) {
+function displayResults(blast, trna, safety, lifestyle, annotation, rbp, hostPred, depp, taxmyphage, header, sequence) {
 const seqLen = sequence.length;
 const gc = ((sequence.match(/[GC]/gi)||[]).length / seqLen * 100).toFixed(1);
 const ictv = blast.ictv || {};
@@ -913,6 +980,48 @@ hostHTML += `<p style="font-size:11px;color:#888;margin-top:10px">${hostPred.eng
 }
 document.getElementById('host-results').innerHTML = hostHTML;
 
+// Depolymerase Prediction
+let deppHTML = '';
+if (depp.error) {
+deppHTML = `<p style="color:#c0392b">⚠️ Depolymerase prediction failed: ${depp.error}</p>`;
+} else {
+const deppCandidates = depp.candidates || [];
+deppHTML = `<p><strong>${depp.depolymerase_candidates_found||0} candidate depolymerase(s) found</strong> out of ${depp.total_proteins_scanned||0} proteins scanned (probability ≥ 0.5)</p>`;
+if (deppCandidates.length > 0) {
+deppHTML += `<table class="hit-table" style="margin-top:10px">
+<tr>
+<th>Protein ID</th>
+<th>Depolymerase Probability</th>
+</tr>`;
+deppCandidates.forEach(c => {
+deppHTML += `<tr>
+<td>${c.protein_id||'—'}</td>
+<td>${(c.depolymerase_probability*100).toFixed(1)}%</td>
+</tr>`;
+});
+deppHTML += '</table>';
+}
+deppHTML += `<p style="font-size:11px;color:#888;margin-top:10px">${depp.engine||'DePP — Random Forest classifier'}</p>`;
+}
+document.getElementById('depp-results').innerHTML = deppHTML;
+
+// Deep ICTV Classification
+let taxHTML = '';
+if (taxmyphage.error) {
+taxHTML = `<p style="color:#c0392b">⚠️ Deep classification failed or timed out: ${taxmyphage.error}</p>`;
+} else {
+taxHTML = `<p><strong>Class:</strong> ${taxmyphage.class_||'—'} &nbsp;|&nbsp; <strong>Family:</strong> ${taxmyphage.family||'—'} &nbsp;|&nbsp; <strong>Subfamily:</strong> ${taxmyphage.subfamily||'—'}</p>`;
+taxHTML += `<p style="margin-top:8px"><strong>Genus:</strong> ${taxmyphage.genus||'—'} &nbsp;|&nbsp; <strong>Species:</strong> ${taxmyphage.species||'—'}</p>`;
+if (taxmyphage.is_new_species) {
+taxHTML += `<p style="color:#8e44ad;margin-top:8px">This genome appears to represent a new species within its predicted genus.</p>`;
+}
+if (taxmyphage.is_new_genus) {
+taxHTML += `<p style="color:#8e44ad;margin-top:8px">This genome may represent a new genus.</p>`;
+}
+taxHTML += `<p style="font-size:11px;color:#888;margin-top:10px">${taxmyphage.engine||'taxMyPhage — MASH + BLASTn clustering'}</p>`;
+}
+document.getElementById('taxmyphage-results').innerHTML = taxHTML;
+
 // Circular Genome Map
 if (annotation.genome_map_png_base64) {
 document.getElementById('genome-map-results').innerHTML = `
@@ -943,6 +1052,8 @@ const lifestyle = analysisData.lifestyle || {};
 const annotation = analysisData.annotation || {};
 const rbp = analysisData.rbp || {};
 const hostPred = analysisData.hostPred || {};
+const depp = analysisData.depp || {};
+const taxmyphage = analysisData.taxmyphage || {};
 const ictv = blast.ictv || {};
 const seq = analysisData.sequence || '';
 const seqLen = seq.length;
@@ -1049,6 +1160,27 @@ Similarity score : ${hostPred.similarity_score||'—'}
 NCBI Taxonomy ID : ${hostPred.predicted_host_taxid||'—'}
 Lineage : ${hostPred.lineage||'—'}
 Note : Prediction reflects genomic k-mer similarity; may resolve to a closely related genus/species rather than an exact match.
+`;
+
+report += `
+DEPOLYMERASE PREDICTION (DePP)
+${DIV}
+Candidates found : ${depp.depolymerase_candidates_found||0} of ${depp.total_proteins_scanned||0} proteins scanned (probability >= 0.5)
+`;
+(depp.candidates||[]).forEach(c => {
+report += ` ${c.protein_id||'—'} | Probability: ${(c.depolymerase_probability*100).toFixed(1)}%\n`;
+});
+
+report += `
+DEEP ICTV CLASSIFICATION (taxMyPhage)
+${DIV}
+Class : ${taxmyphage.class_||'—'}
+Family : ${taxmyphage.family||'—'}
+Subfamily : ${taxmyphage.subfamily||'—'}
+Genus : ${taxmyphage.genus||'—'}
+Species : ${taxmyphage.species||'—'}
+New species : ${taxmyphage.is_new_species ? 'Yes' : 'No'}
+New genus : ${taxmyphage.is_new_genus ? 'Yes' : 'No'}
 `;
 
 report += `
