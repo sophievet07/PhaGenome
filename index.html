@@ -294,12 +294,12 @@ ICAR–National Meat Research Institute, Hyderabad, India
 <div class="feature-title">Host Prediction</div>
 <div class="feature-desc">PHP (k-mer/Gaussian Model)</div>
 </div>
-<div class="feature">
+<div class="feature" style="display:none">
 <div class="feature-icon">💧</div>
 <div class="feature-title">Depolymerase Prediction</div>
 <div class="feature-desc">DePP (Random Forest)</div>
 </div>
-<div class="feature">
+<div class="feature" style="display:none">
 <div class="feature-icon">🔬</div>
 <div class="feature-title">ICTV Deep Classification</div>
 <div class="feature-desc">taxMyPhage (MASH + BLASTn)</div>
@@ -352,11 +352,11 @@ Receptor-Binding Protein Detection...
 <span class="step-icon">🦠</span>
 Bacterial Host Prediction...
 </div>
-<div class="step" id="step-depp">
+<div class="step" id="step-depp" style="display:none">
 <span class="step-icon">💧</span>
 Depolymerase Prediction...
 </div>
-<div class="step" id="step-taxmyphage">
+<div class="step" id="step-taxmyphage" style="display:none">
 <span class="step-icon">🔬</span>
 Deep ICTV Classification (may take a few minutes for well-studied genera)...
 </div>
@@ -427,13 +427,13 @@ Analysis Complete!
 </div>
 
 <!-- Depolymerase Prediction -->
-<div class="result-section">
+<div class="result-section" style="display:none">
 <h3>💧 Depolymerase Prediction</h3>
 <div id="depp-results"></div>
 </div>
 
 <!-- Deep ICTV Classification -->
-<div class="result-section">
+<div class="result-section" style="display:none">
 <h3>🔬 Deep ICTV Classification (taxMyPhage)</h3>
 <div id="taxmyphage-results"></div>
 </div>
@@ -599,41 +599,17 @@ setStep('host', 'error');
 }
 analysisData.hostPred = hostPred;
 
-// Depolymerase Prediction (DePP)
-setStep('depp', 'running');
+// Depolymerase Prediction (DePP) — TEMPORARILY DISABLED
+// (see conversation notes: DNA polymerase false-positive at
+// probability 0.907 found in testing; disabled pending review)
 let depp = {};
-try {
-const deppRes = await fetch(`${API}/depolymerase`, {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ sequence, header })
-});
-depp = await deppRes.json();
-setStep('depp', 'done');
-} catch (deppErr) {
-console.error('Depolymerase prediction error:', deppErr);
-depp = { depolymerase_candidates_found: 0, error: deppErr.message };
-setStep('depp', 'error');
-}
 analysisData.depp = depp;
 
-// Deep ICTV Classification (taxMyPhage) — can take several
-// minutes for genomes closely related to well-studied genera
-setStep('taxmyphage', 'running');
+// Deep ICTV Classification (taxMyPhage) — TEMPORARILY DISABLED
+// (see conversation notes: deployed container returning
+// 'Not Defined Yet' placeholder instead of real classification;
+// disabled pending database/deployment debugging)
 let taxmyphage = {};
-try {
-const taxRes = await fetch(`${API}/taxmyphage`, {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ sequence, header })
-});
-taxmyphage = await taxRes.json();
-setStep('taxmyphage', 'done');
-} catch (taxErr) {
-console.error('taxMyPhage error:', taxErr);
-taxmyphage = { error: taxErr.message };
-setStep('taxmyphage', 'error');
-}
 analysisData.taxmyphage = taxmyphage;
 
 setStep('done', 'done');
